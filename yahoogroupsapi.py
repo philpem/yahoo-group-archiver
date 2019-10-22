@@ -4,6 +4,8 @@ import json
 import functools
 import time
 
+YG_timeout=YG_TIMEOUT
+
 class YahooGroupsAPI:
     BASE_URI="https://groups.yahoo.com/api"
     LOGIN_URI="https://login.yahoo.com/"
@@ -38,7 +40,7 @@ class YahooGroupsAPI:
 
     def login(self, user, password):
         data = {'login': user, 'passwd': password}
-        r = self.s.post(self.LOGIN_URI, data=data, timeout=10)
+        r = self.s.post(self.LOGIN_URI, data=data, timeout=YG_TIMEOUT)
 
         # On success, 302 redirect setting lots of cookies to 200 /config/verify
         # On fail, 302 redirect setting 1 cookie to 200 /m
@@ -70,7 +72,7 @@ class YahooGroupsAPI:
         uri_parts = uri_parts + map(str, parts)
         uri = "/".join(uri_parts)
 
-        r = self.s.get(uri, params=opts, allow_redirects=False, timeout=10)
+        r = self.s.get(uri, params=opts, allow_redirects=False, timeout=YG_TIMEOUT)
         try:
             r.raise_for_status()
             if r.status_code != 200:
