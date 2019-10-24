@@ -4,7 +4,7 @@ import json
 import functools
 import time
 
-YG_TIMEOUT=30
+YG_TIMEOUT=None
 
 class YahooGroupsAPI:
     BASE_URI="https://groups.yahoo.com/api"
