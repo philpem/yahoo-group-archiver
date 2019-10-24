@@ -53,6 +53,7 @@ def archive_email(yga, reattach=True, save=True):
         id = message['messageId']
 
         print "* Fetching raw message #%d of %d" % (id,count)
+        raw_json = None
         for i in range(5):
             try:
                 raw_json = yga.messages(id, 'raw')
@@ -60,6 +61,14 @@ def archive_email(yga, reattach=True, save=True):
             except requests.exceptions.ReadTimeout:
                 print "ERROR: Read timeout, retrying"
                 time.sleep(HOLDOFF)
+            except requests.exceptions.HTTPError as err:
+                if err.response.status_code == 500:
+                    print "ERROR: HTTP error %d reading the message... given up :(" % err.response.status_code
+                    continue
+
+        if raw_json is None:
+            print "ERROR: given up on this message, moving on"
+            continue
 
         mime = unescape_html(raw_json['rawEmail']).encode('latin_1', 'ignore')
 
@@ -73,11 +82,13 @@ def archive_email(yga, reattach=True, save=True):
                 for attach in message['attachments']:
                     print "** Fetching attachment '%s'" % (attach['filename'],)
                     if 'link' in attach:
+                        ok = False
                         # try and download the attachment
                         # (sometimes yahoo doesn't keep them)
                         for i in range(TRIES):
                             try:
                                 atts[attach['filename']] = yga.get_file(attach['link'])
+                                ok = True
                                 break
                             except requests.exceptions.HTTPError as err:
                                 print "ERROR: can't download attachment, try %d: %s" % (i, err)
@@ -108,9 +119,9 @@ def archive_email(yga, reattach=True, save=True):
                                     time.sleep(HOLDOFF)
                                     #exclude.append(photoinfo['photoType'])
 
-                        # if we failed, try the next attachment
-                        if not ok:
-                            continue
+                    # if we failed, try the next attachment
+                    if not ok:
+                        continue
 
                     if save:
                         fname = "%s-%s" % (id, basename(attach['filename']))
@@ -147,7 +158,11 @@ def archive_files(yga, subdir=None):
             name = unescape_html(path['fileName'])
             print "* Fetching file '%s' (%d/%d)" % (name, n, sz)
             with open(basename(name), 'wb') as f:
-                yga.download_file(path['downloadURL'], f)
+                try:
+                    yga.download_file(path['downloadURL'], f)
+                except requests.exceptions.HTTPError as err:
+                    print "ERROR downloading '%s' -- possibly malware?" % name
+                    continue
 
         elif path['type'] == 1:
             # Directory
